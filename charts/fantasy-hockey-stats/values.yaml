@@ -37,9 +37,9 @@ migrationJob:
   backoffLimit: 3
 
 seasonImport:
-  # Set true only for the Helm run that should import or refresh a season.
+  # Set true only for the Helm run that should import or refresh these seasons.
   enabled: false
-  seasonId: ""
+  seasonIds: []
   backoffLimit: 3
 
 ingress:

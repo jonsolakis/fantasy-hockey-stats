@@ -42,9 +42,10 @@ imported or refreshed:
 helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
   --namespace fantasy-hockey \
   --set seasonImport.enabled=true \
-  --set seasonImport.seasonId=20252026
+  --set seasonImport.seasonIds[0]=20242025 \
+  --set seasonImport.seasonIds[1]=20252026
 ```
 
 After the Job completes, set `seasonImport.enabled=false` again before routine
-upgrades. The Job replaces that season's aggregate skater and goalie rows, so
-it is safe to rerun for the same season.
+upgrades. The chart creates one Job per season, and each Job replaces that
+season's aggregate skater and goalie rows, so it is safe to rerun.
