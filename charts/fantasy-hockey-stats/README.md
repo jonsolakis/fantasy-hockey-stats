@@ -50,4 +50,8 @@ Each import replaces that season's aggregate skater and goalie rows, so it is
 safe to rerun. The Deployment uses a Recreate strategy, so the old API pod
 releases the PVC before its replacement migrates and imports. A failed NHL
 request leaves the previous snapshot in place and prevents the new API pod from
-starting.
+starting. Because these are init containers, imports run whenever Kubernetes
+recreates the API pod, including node moves and pod restarts—not only Helm
+deployments. Keep `seasonImport.enabled` false if NHL availability must never
+prevent API startup. A future scheduled-import design can decouple freshness
+from API availability.

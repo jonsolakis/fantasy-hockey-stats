@@ -6,24 +6,7 @@ metadata:
     {{- include "fantasy-hockey-stats.labels" . | nindent 4 }}
 data:
   default.conf: |
-    server {
-        listen 8080;
-        server_name _;
-        root /usr/share/nginx/html;
-        index 200.html;
-
-        location /api/ {
-            proxy_pass http://{{ include "fantasy-hockey-stats.fullname" . }}-api:{{ .Values.api.service.port }};
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        location / {
-            try_files $uri $uri/ /200.html;
-        }
-    }
+{{ include "fantasy-hockey-stats.webNginxConfig" . | nindent 4 }}
 ---
 apiVersion: v1
 kind: Service
@@ -58,6 +41,8 @@ spec:
       labels:
         {{- include "fantasy-hockey-stats.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
+      annotations:
+        checksum/config: {{ include "fantasy-hockey-stats.webNginxConfig" . | sha256sum }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -70,6 +55,12 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /
