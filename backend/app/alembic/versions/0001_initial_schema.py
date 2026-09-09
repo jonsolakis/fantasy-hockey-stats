@@ -1,4 +1,4 @@
-"""Initial application schema.
+"""Initial application schema packaged with the application.
 
 This migration is intentionally safe to run against the prototype database
 created with create_all(): it creates only tables that are still missing, then

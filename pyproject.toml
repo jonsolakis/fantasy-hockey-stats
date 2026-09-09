@@ -27,6 +27,9 @@ package-dir = {"" = "backend"}
 [tool.setuptools.packages.find]
 where = ["backend"]
 
+[tool.setuptools.package-data]
+app = ["alembic/script.py.mako"]
+
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 
