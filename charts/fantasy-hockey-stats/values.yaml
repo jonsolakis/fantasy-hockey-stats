@@ -16,7 +16,7 @@ web:
   image:
     repository: registry.digitalocean.com/jonsolakis/fantasy-hockey-stats
     pullPolicy: IfNotPresent
-    tag: web-40bab2e
+    tag: web-e372204
   replicaCount: 1
   service:
     type: ClusterIP
