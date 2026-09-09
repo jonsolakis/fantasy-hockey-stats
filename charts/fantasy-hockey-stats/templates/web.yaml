@@ -10,6 +10,7 @@ data:
         listen 8080;
         server_name _;
         root /usr/share/nginx/html;
+        index 200.html;
 
         location /api/ {
             proxy_pass http://{{ include "fantasy-hockey-stats.fullname" . }}-api:{{ .Values.api.service.port }};
