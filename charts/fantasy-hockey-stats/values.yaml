@@ -5,7 +5,7 @@ api:
   image:
     repository: registry.digitalocean.com/jonsolakis/fantasy-hockey-stats
     pullPolicy: IfNotPresent
-    tag: api-bc27e24
+    tag: api-40bab2e
   replicaCount: 1
   service:
     type: ClusterIP
@@ -16,7 +16,7 @@ web:
   image:
     repository: registry.digitalocean.com/jonsolakis/fantasy-hockey-stats
     pullPolicy: IfNotPresent
-    tag: web-bc27e24
+    tag: web-40bab2e
   replicaCount: 1
   service:
     type: ClusterIP
