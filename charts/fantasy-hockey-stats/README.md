@@ -34,9 +34,8 @@ Never increase `api.replicaCount` above one while using SQLite.
 ## Season imports
 
 Season data is not bundled with the chart. The optional import Job uses the
-same idempotent CLI command as local development. Keep it disabled in the
-normal Helmfile values, then enable it for one Helm run when a season should be
-imported or refreshed:
+same idempotent CLI command as local development. Keep it enabled in Helmfile
+values to refresh the selected seasons on every deployment:
 
 ```sh
 helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
@@ -46,6 +45,6 @@ helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
   --set seasonImport.seasonIds[1]=20252026
 ```
 
-After the Job completes, set `seasonImport.enabled=false` again before routine
-upgrades. The chart creates one Job per season, and each Job replaces that
-season's aggregate skater and goalie rows, so it is safe to rerun.
+The chart creates one Job per season, and each Job replaces that season's
+aggregate skater and goalie rows, so it is safe to rerun. A failed NHL request
+leaves the previous snapshot in place, but causes that Helm deployment to fail.
