@@ -56,7 +56,8 @@ automatically. The first migration is safe for the prototype database created by
 earlier versions of the app: it recognizes the existing tables and records the
 current revision without replacing data.
 
-For Kubernetes, run the same command as a one-off Job against the API's PVC:
+For Kubernetes, the Helm chart runs this command as an init container in the
+API pod against the same PVC:
 
 ```sh
 python -m app.cli migrate
@@ -65,8 +66,7 @@ python -m app.cli migrate
 It is safe to rerun. The command upgrades only unapplied schema revisions and
 then seeds the built-in Yahoo Default Points League and Peachy Hockey profiles.
 Seed profiles are inserted only when their names are absent, so existing profiles
-and user-created profiles are never overwritten. Run this Job before rolling out
-the API workload for a schema-changing release.
+and user-created profiles are never overwritten.
 
 To remove all local app data as well as containers, run `docker compose down -v`.
 
@@ -93,8 +93,7 @@ helm upgrade --install fantasy-hockey ./charts/fantasy-hockey-stats \
 For a subsequent app release, override both tags with the immutable tags that
 were pushed for its commit: `api-<commit-sha>` and `web-<commit-sha>`.
 
-On a new install, an API init container applies migrations. On an upgrade, the
-chart runs the same idempotent migration command as a pre-upgrade Job before
-the application pods are changed. See the chart README for ingress and
-existing-PVC configuration, plus the optional season-import Job needed to load
-NHL data into a fresh environment.
+On every install or upgrade, API-pod init containers apply migrations and any
+configured season imports before the API starts. This avoids attaching the
+SQLite PVC to separate migration/import Jobs. See the chart README for ingress,
+existing-PVC configuration, and season-import settings.

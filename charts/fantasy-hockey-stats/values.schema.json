@@ -29,8 +29,7 @@
         "seasonIds": {
           "type": "array",
           "items": { "type": ["string", "integer"] }
-        },
-        "backoffLimit": { "type": "integer", "minimum": 0 }
+        }
       }
     }
   }

@@ -23,19 +23,20 @@ needs to be public.
 
 ## Database lifecycle
 
-The API init container runs `python -m app.cli migrate` for a new installation.
-On upgrades, the chart runs the same idempotent command as a Helm pre-upgrade
-Job before the API workload is changed. The PVC is retained by Helm by default;
-uninstalling the release does not delete it automatically.
+The API pod runs `python -m app.cli migrate` as its first init container before
+the application starts. This works on both installs and upgrades without a
+separate pod competing for the ReadWriteOnce PVC. The PVC is retained by Helm
+by default; uninstalling the release does not delete it automatically.
 
 Use `persistence.existingClaim` to point at an existing ReadWriteOnce claim.
 Never increase `api.replicaCount` above one while using SQLite.
 
 ## Season imports
 
-Season data is not bundled with the chart. The optional import Job uses the
-same idempotent CLI command as local development. Keep it enabled in Helmfile
-values to refresh the selected seasons on every deployment:
+Season data is not bundled with the chart. When enabled, each season import
+runs as an API-pod init container after migrations and before the API starts.
+Keep it enabled in Helmfile values to refresh the selected seasons on every
+deployment:
 
 ```sh
 helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
@@ -45,6 +46,8 @@ helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
   --set seasonImport.seasonIds[1]=20252026
 ```
 
-The chart creates one Job per season, and each Job replaces that season's
-aggregate skater and goalie rows, so it is safe to rerun. A failed NHL request
-leaves the previous snapshot in place, but causes that Helm deployment to fail.
+Each import replaces that season's aggregate skater and goalie rows, so it is
+safe to rerun. The Deployment uses a Recreate strategy, so the old API pod
+releases the PVC before its replacement migrates and imports. A failed NHL
+request leaves the previous snapshot in place and prevents the new API pod from
+starting.

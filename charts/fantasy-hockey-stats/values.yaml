@@ -31,16 +31,10 @@ persistence:
     - ReadWriteOnce
   size: 1Gi
 
-migrationJob:
-  # Runs as a pre-upgrade Helm hook. Initial installs are migrated by the API init container.
-  enabled: true
-  backoffLimit: 3
-
 seasonImport:
-  # Set true only for the Helm run that should import or refresh these seasons.
+  # Imports run in the API pod before it starts, avoiding PVC multi-attach errors.
   enabled: false
   seasonIds: []
-  backoffLimit: 3
 
 ingress:
   enabled: false
