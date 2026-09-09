@@ -1,0 +1,11 @@
+.git/
+.venv/
+.pytest_cache/
+.ruff_cache/
+data/
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+backend/*.egg-info/
+__pycache__/
+*.py[cod]

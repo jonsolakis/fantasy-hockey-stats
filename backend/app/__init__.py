@@ -1,0 +1,1 @@
+"""Fantasy hockey stats API."""

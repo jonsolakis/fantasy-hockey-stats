@@ -1,0 +1,9 @@
+Fantasy Hockey Stats has been installed.
+
+{{- if .Values.ingress.enabled }}
+Open the site at the hostname configured in ingress.hosts.
+{{- else }}
+To access it locally:
+  kubectl port-forward service/{{ include "fantasy-hockey-stats.fullname" . }}-web 8080:{{ .Values.web.service.port }}
+Then open http://localhost:8080.
+{{- end }}

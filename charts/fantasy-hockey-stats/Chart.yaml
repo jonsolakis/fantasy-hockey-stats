@@ -1,0 +1,7 @@
+apiVersion: v2
+name: fantasy-hockey-stats
+description: Self-hosted fantasy hockey scoring comparison site
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.25.0-0"

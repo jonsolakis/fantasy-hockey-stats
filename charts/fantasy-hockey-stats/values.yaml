@@ -1,0 +1,51 @@
+nameOverride: ""
+fullnameOverride: ""
+
+api:
+  image:
+    repository: ghcr.io/replace-me/fantasy-hockey-stats-api
+    pullPolicy: IfNotPresent
+    tag: ""
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8000
+  resources: {}
+
+web:
+  image:
+    repository: ghcr.io/replace-me/fantasy-hockey-stats-web
+    pullPolicy: IfNotPresent
+    tag: ""
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources: {}
+
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+
+migrationJob:
+  # Runs as a pre-upgrade Helm hook. Initial installs are migrated by the API init container.
+  enabled: true
+  backoffLimit: 3
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: fantasy-hockey.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+imagePullSecrets: []
+podAnnotations: {}
