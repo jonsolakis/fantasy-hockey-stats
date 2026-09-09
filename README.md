@@ -83,20 +83,18 @@ single API replica backed by a ReadWriteOnce PVC, a static web frontend, and an
 optional Ingress. The frontend proxies `/api` to the internal API service, so
 the API does not need a public Service.
 
-Build and publish both production images, then install the chart with their
-repositories and a shared release tag:
+The chart defaults to the published images in the DigitalOcean registry:
 
 ```sh
-docker build -t ghcr.io/your-org/fantasy-hockey-stats-api:1.0.0 .
-docker build -t ghcr.io/your-org/fantasy-hockey-stats-web:1.0.0 ./frontend
 helm upgrade --install fantasy-hockey ./charts/fantasy-hockey-stats \
-  --namespace fantasy-hockey --create-namespace \
-  --set api.image.repository=ghcr.io/your-org/fantasy-hockey-stats-api \
-  --set web.image.repository=ghcr.io/your-org/fantasy-hockey-stats-web \
-  --set api.image.tag=1.0.0 --set web.image.tag=1.0.0
+  --namespace fantasy-hockey --create-namespace
 ```
+
+For a subsequent app release, override both tags with the immutable tags that
+were pushed for its commit: `api-<commit-sha>` and `web-<commit-sha>`.
 
 On a new install, an API init container applies migrations. On an upgrade, the
 chart runs the same idempotent migration command as a pre-upgrade Job before
 the application pods are changed. See the chart README for ingress and
-existing-PVC configuration.
+existing-PVC configuration, plus the optional season-import Job needed to load
+NHL data into a fresh environment.

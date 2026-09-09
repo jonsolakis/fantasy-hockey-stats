@@ -3,9 +3,9 @@ fullnameOverride: ""
 
 api:
   image:
-    repository: ghcr.io/replace-me/fantasy-hockey-stats-api
+    repository: registry.digitalocean.com/jonsolakis/fantasy-hockey-stats
     pullPolicy: IfNotPresent
-    tag: ""
+    tag: api-bc27e24
   replicaCount: 1
   service:
     type: ClusterIP
@@ -14,9 +14,9 @@ api:
 
 web:
   image:
-    repository: ghcr.io/replace-me/fantasy-hockey-stats-web
+    repository: registry.digitalocean.com/jonsolakis/fantasy-hockey-stats
     pullPolicy: IfNotPresent
-    tag: ""
+    tag: web-bc27e24
   replicaCount: 1
   service:
     type: ClusterIP
@@ -34,6 +34,12 @@ persistence:
 migrationJob:
   # Runs as a pre-upgrade Helm hook. Initial installs are migrated by the API init container.
   enabled: true
+  backoffLimit: 3
+
+seasonImport:
+  # Set true only for the Helm run that should import or refresh a season.
+  enabled: false
+  seasonId: ""
   backoffLimit: 3
 
 ingress:

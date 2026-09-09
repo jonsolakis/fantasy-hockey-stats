@@ -6,16 +6,16 @@ ReadWriteOnce volume and must not be shared between replicas.
 
 ## Install
 
-Build and publish the two images first, then provide their repositories and tag:
+The default values use the published images in your DigitalOcean registry:
 
 ```sh
 helm upgrade --install fantasy-hockey ./charts/fantasy-hockey-stats \
-  --namespace fantasy-hockey --create-namespace \
-  --set api.image.repository=ghcr.io/your-org/fantasy-hockey-stats-api \
-  --set web.image.repository=ghcr.io/your-org/fantasy-hockey-stats-web \
-  --set api.image.tag=1.0.0 \
-  --set web.image.tag=1.0.0
+  --namespace fantasy-hockey --create-namespace
 ```
+
+For a later app release, override both image tags with the paired immutable
+tags you pushed, such as `--set api.image.tag=api-<commit-sha>` and
+`--set web.image.tag=web-<commit-sha>`.
 
 Set `ingress.enabled=true` and configure `ingress.hosts` to expose the web
 service. The web container proxies `/api` internally, so only the web service
@@ -30,3 +30,21 @@ uninstalling the release does not delete it automatically.
 
 Use `persistence.existingClaim` to point at an existing ReadWriteOnce claim.
 Never increase `api.replicaCount` above one while using SQLite.
+
+## Season imports
+
+Season data is not bundled with the chart. The optional import Job uses the
+same idempotent CLI command as local development. Keep it disabled in the
+normal Helmfile values, then enable it for one Helm run when a season should be
+imported or refreshed:
+
+```sh
+helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
+  --namespace fantasy-hockey \
+  --set seasonImport.enabled=true \
+  --set seasonImport.seasonId=20252026
+```
+
+After the Job completes, set `seasonImport.enabled=false` again before routine
+upgrades. The Job replaces that season's aggregate skater and goalie rows, so
+it is safe to rerun for the same season.

@@ -21,6 +21,14 @@
         "existingClaim": { "type": "string" },
         "size": { "type": "string" }
       }
+    },
+    "seasonImport": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "seasonId": { "type": ["string", "integer"] },
+        "backoffLimit": { "type": "integer", "minimum": 0 }
+      }
     }
   }
 }
