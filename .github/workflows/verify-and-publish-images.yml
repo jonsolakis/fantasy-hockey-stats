@@ -57,8 +57,8 @@ jobs:
 
       - name: Verify Helm chart
         run: |
-          helm lint charts/fantasy-hockey-stats
-          helm template fantasy-hockey charts/fantasy-hockey-stats > /dev/null
+          helm lint charts/fantasy-hockey-stats --set database.existingSecret=fantasy-hockey-database
+          helm template fantasy-hockey charts/fantasy-hockey-stats --set database.existingSecret=fantasy-hockey-database > /dev/null
           helm package charts/fantasy-hockey-stats --destination /tmp/chart-package
 
   publish-images:

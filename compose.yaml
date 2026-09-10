@@ -1,26 +1,41 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fantasy_hockey
+      POSTGRES_USER: fantasy_hockey
+      POSTGRES_PASSWORD: fantasy_hockey
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fantasy_hockey -d fantasy_hockey"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   migrate:
     build:
       context: .
       target: development
     environment:
-      DATABASE_URL: sqlite:////data/fantasy-hockey.db
+      DATABASE_URL: postgresql+psycopg://fantasy_hockey:fantasy_hockey@postgres:5432/fantasy_hockey
     command: ["python", "-m", "app.cli", "migrate"]
     volumes:
       - ./backend:/app/backend
-      - hockey_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   api:
     build:
       context: .
       target: development
     environment:
-      DATABASE_URL: sqlite:////data/fantasy-hockey.db
+      DATABASE_URL: postgresql+psycopg://fantasy_hockey:fantasy_hockey@postgres:5432/fantasy_hockey
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend
-      - hockey_data:/data
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -47,5 +62,5 @@ services:
         condition: service_healthy
 
 volumes:
-  hockey_data:
+  postgres_data:
   frontend_node_modules:

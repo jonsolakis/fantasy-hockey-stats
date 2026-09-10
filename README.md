@@ -6,9 +6,9 @@ different fantasy-hockey scoring systems.
 ## Architecture
 
 - **API:** FastAPI and SQLAlchemy
-- **Database:** SQLite in WAL mode, stored on a persistent volume
+- **Database:** PostgreSQL
 - **UI:** SvelteKit
-- **Deployment:** one Kubernetes StatefulSet replica with a block-backed PVC
+- **Deployment:** Kubernetes API and web Deployments backed by PostgreSQL
 
 The application stores raw player game results independently from scoring rules.
 Changing a scoring profile therefore recalculates rankings without re-importing
@@ -31,8 +31,8 @@ This starts all local dependencies in containers:
 - API: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
 
-The frontend and API both reload when their source files change. SQLite is stored
-in Docker's `hockey_data` volume, so it survives container restarts.
+The frontend and API both reload when their source files change. PostgreSQL is
+stored in Docker's `postgres_data` volume, so it survives container restarts.
 
 Useful commands:
 
@@ -51,13 +51,13 @@ The public reference site remains read-only even without user authentication.
 ## Database migrations and seed data
 
 The database schema is versioned with Alembic. Compose runs the `migrate` service
-before starting the API, so a new or existing `hockey_data` volume is upgraded
+before starting the API, so a new or existing `postgres_data` volume is upgraded
 automatically. The first migration is safe for the prototype database created by
 earlier versions of the app: it recognizes the existing tables and records the
 current revision without replacing data.
 
 For Kubernetes, the Helm chart runs this command as an init container in the
-API pod against the same PVC:
+API pod:
 
 ```sh
 python -m app.cli migrate
@@ -72,28 +72,32 @@ To remove all local app data as well as containers, run `docker compose down -v`
 
 ## Database notes
 
-Development stores the database in Docker's `hockey_data` volume. Production
-should mount the `/data` directory from a single-pod, block-backed PVC. Do not
-put a WAL-mode SQLite database on NFS or share it across app replicas.
+Compose runs a single PostgreSQL container. In Kubernetes, provision PostgreSQL
+as infrastructure (a single-replica StatefulSet with its own PVC is appropriate
+for this hobby cluster) and provide the application a Secret containing a
+`DATABASE_URL` key. The API has no database volume and may be rolled independently
+of PostgreSQL. Take regular logical backups with `pg_dump`.
 
 ## Kubernetes release
 
-The production Helm chart is in `charts/fantasy-hockey-stats`. It deploys a
-single API replica backed by a ReadWriteOnce PVC, a static web frontend, and an
-optional Ingress. The frontend proxies `/api` to the internal API service, so
-the API does not need a public Service.
+The production Helm chart is in `charts/fantasy-hockey-stats`. It deploys the
+API, a static web frontend, and an optional Ingress. PostgreSQL is deliberately
+not bundled into the application chart; provision it from the infrastructure
+repository and pass its connection URL by Secret. The frontend proxies `/api`
+to the internal API service, so the API does not need a public Service.
 
 The chart defaults to the published images in the DigitalOcean registry:
 
 ```sh
 helm upgrade --install fantasy-hockey ./charts/fantasy-hockey-stats \
-  --namespace fantasy-hockey --create-namespace
+  --namespace fantasy-hockey --create-namespace \
+  --set database.existingSecret=fantasy-hockey-database
 ```
 
 For a subsequent app release, override both tags with the immutable tags that
 were pushed for its commit: `api-<commit-sha>` and `web-<commit-sha>`.
 
-On every install or upgrade, API-pod init containers apply migrations and any
-configured season imports before the API starts. This avoids attaching the
-SQLite PVC to separate migration/import Jobs. See the chart README for ingress,
-existing-PVC configuration, and season-import settings.
+On every install or upgrade, the API-pod init container applies migrations before
+the API starts. Season imports run separately as a CronJob, so an unavailable
+NHL API cannot prevent the API Pod from starting. See the chart README for
+database-secret, ingress, and season-import settings.

@@ -4,10 +4,35 @@ import os
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import URL, Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/fantasy-hockey.db")
+
+def database_url() -> str:
+    """Return an explicit URL or construct one from PostgreSQL environment variables."""
+    explicit_url = os.getenv("DATABASE_URL")
+    if explicit_url:
+        return explicit_url
+
+    postgres_host = os.getenv("POSTGRES_HOST")
+    if postgres_host:
+        required = {key: os.getenv(key) for key in ("POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD")}
+        missing = sorted(key for key, value in required.items() if not value)
+        if missing:
+            raise RuntimeError(f"PostgreSQL is configured but missing environment variables: {', '.join(missing)}")
+        return URL.create(
+            "postgresql+psycopg",
+            username=required["POSTGRES_USER"],
+            password=required["POSTGRES_PASSWORD"],
+            host=postgres_host,
+            port=int(os.getenv("POSTGRES_PORT", "5432")),
+            database=required["POSTGRES_DB"],
+        ).render_as_string(hide_password=False)
+
+    return "sqlite:///./data/fantasy-hockey.db"
+
+
+DATABASE_URL = database_url()
 
 if DATABASE_URL.startswith("sqlite:///"):
     database_path = DATABASE_URL.removeprefix("sqlite:///")

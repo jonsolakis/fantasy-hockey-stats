@@ -1,0 +1,48 @@
+{{- if .Values.seasonImport.enabled }}
+{{- if not .Values.seasonImport.seasonIds }}
+{{- fail "seasonImport.seasonIds must contain at least one season when seasonImport.enabled=true" }}
+{{- end }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "fantasy-hockey-stats.fullname" . }}-season-import
+  labels:
+    {{- include "fantasy-hockey-stats.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.seasonImport.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.seasonImport.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            {{- include "fantasy-hockey-stats.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: season-import
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: import-seasons
+              image: "{{ .Values.api.image.repository }}:{{ default .Chart.AppVersion .Values.api.image.tag }}"
+              imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  for season_id in "$@"; do
+                    python -m app.cli import-season "$season_id"
+                  done
+                - --
+                {{- range .Values.seasonImport.seasonIds }}
+                - {{ . | quote }}
+                {{- end }}
+              env:
+{{ include "fantasy-hockey-stats.databaseUrlEnv" . | nindent 16 }}
+              resources:
+                {{- toYaml .Values.seasonImport.resources | nindent 16 }}
+{{- end }}

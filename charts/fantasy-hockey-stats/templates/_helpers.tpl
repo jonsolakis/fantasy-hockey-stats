@@ -23,8 +23,16 @@ app.kubernetes.io/name: {{ include "fantasy-hockey-stats.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{- define "fantasy-hockey-stats.dataClaimName" -}}
-{{- default (printf "%s-data" (include "fantasy-hockey-stats.fullname" .)) .Values.persistence.existingClaim }}
+{{- define "fantasy-hockey-stats.databaseSecretName" -}}
+{{- required "database.existingSecret is required" .Values.database.existingSecret }}
+{{- end }}
+
+{{- define "fantasy-hockey-stats.databaseUrlEnv" -}}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "fantasy-hockey-stats.databaseSecretName" . }}
+      key: {{ .Values.database.secretKey }}
 {{- end }}
 
 {{- define "fantasy-hockey-stats.webNginxConfig" -}}

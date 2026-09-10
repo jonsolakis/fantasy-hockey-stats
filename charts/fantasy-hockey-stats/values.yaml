@@ -23,18 +23,19 @@ web:
     port: 80
   resources: {}
 
-persistence:
-  enabled: true
-  existingClaim: ""
-  storageClass: ""
-  accessModes:
-    - ReadWriteOnce
-  size: 1Gi
+database:
+  # Create this Secret outside the chart. It must contain the DATABASE_URL key,
+  # for example postgresql+psycopg://user:password@postgres:5432/fantasy_hockey.
+  existingSecret: ""
+  secretKey: DATABASE_URL
 
 seasonImport:
-  # Imports run in the API pod before it starts, avoiding PVC multi-attach errors.
+  # Imports run independently from the API so an NHL outage never blocks API startup.
   enabled: false
+  schedule: "17 */6 * * *"
   seasonIds: []
+  backoffLimit: 3
+  resources: {}
 
 ingress:
   enabled: false

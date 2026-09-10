@@ -1,6 +1,3 @@
-{{- if and .Values.seasonImport.enabled (not .Values.persistence.enabled) }}
-{{- fail "seasonImport requires persistence.enabled=true so the imported stats are retained" }}
-{{- end }}
 {{- if and .Values.seasonImport.enabled (not .Values.seasonImport.seasonIds) }}
 {{- fail "seasonImport.seasonIds must contain at least one season when seasonImport.enabled=true" }}
 {{- end }}
@@ -29,7 +26,7 @@ metadata:
 spec:
   replicas: {{ .Values.api.replicaCount }}
   strategy:
-    type: Recreate
+    type: RollingUpdate
   selector:
     matchLabels:
       {{- include "fantasy-hockey-stats.selectorLabels" . | nindent 6 }}
@@ -54,32 +51,13 @@ spec:
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           command: ["python", "-m", "app.cli", "migrate"]
           env:
-            - name: DATABASE_URL
-              value: sqlite:////data/fantasy-hockey.db
-          volumeMounts:
-            - name: data
-              mountPath: /data
-        {{- if .Values.seasonImport.enabled }}
-        {{- range $seasonID := .Values.seasonImport.seasonIds }}
-        - name: import-season-{{ $seasonID }}
-          image: "{{ $.Values.api.image.repository }}:{{ default $.Chart.AppVersion $.Values.api.image.tag }}"
-          imagePullPolicy: {{ $.Values.api.image.pullPolicy }}
-          command: ["python", "-m", "app.cli", "import-season", {{ $seasonID | quote }}]
-          env:
-            - name: DATABASE_URL
-              value: sqlite:////data/fantasy-hockey.db
-          volumeMounts:
-            - name: data
-              mountPath: /data
-        {{- end }}
-        {{- end }}
+{{ include "fantasy-hockey-stats.databaseUrlEnv" . | nindent 12 }}
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ default .Chart.AppVersion .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           env:
-            - name: DATABASE_URL
-              value: sqlite:////data/fantasy-hockey.db
+{{ include "fantasy-hockey-stats.databaseUrlEnv" . | nindent 12 }}
           ports:
             - name: http
               containerPort: 8000
@@ -93,14 +71,3 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
-          volumeMounts:
-            - name: data
-              mountPath: /data
-      volumes:
-        - name: data
-          {{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "fantasy-hockey-stats.dataClaimName" . }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}

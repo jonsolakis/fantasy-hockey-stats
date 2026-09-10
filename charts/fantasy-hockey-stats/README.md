@@ -1,16 +1,25 @@
 # Fantasy Hockey Stats Helm chart
 
-This chart deploys the API, static web frontend, and a single persistent SQLite
-database. It is intentionally a single API replica: SQLite is stored on a
-ReadWriteOnce volume and must not be shared between replicas.
+This chart deploys the API, static web frontend, and an optional Ingress.
+PostgreSQL is provisioned separately by the infrastructure repository so the
+database lifecycle is independent of the application release.
 
 ## Install
 
-The default values use the published images in your DigitalOcean registry:
+The default values use the published images in your DigitalOcean registry. First
+create the Secret that holds the PostgreSQL connection URL:
+
+```sh
+kubectl -n fantasy-hockey create secret generic fantasy-hockey-database \
+  --from-literal=DATABASE_URL='postgresql+psycopg://USER:PASSWORD@POSTGRES_SERVICE:5432/fantasy_hockey'
+```
+
+Then install the chart:
 
 ```sh
 helm upgrade --install fantasy-hockey ./charts/fantasy-hockey-stats \
-  --namespace fantasy-hockey --create-namespace
+  --namespace fantasy-hockey --create-namespace \
+  --set database.existingSecret=fantasy-hockey-database
 ```
 
 For a later app release, override both image tags with the paired immutable
@@ -23,35 +32,38 @@ needs to be public.
 
 ## Database lifecycle
 
-The API pod runs `python -m app.cli migrate` as its first init container before
-the application starts. This works on both installs and upgrades without a
-separate pod competing for the ReadWriteOnce PVC. The PVC is retained by Helm
-by default; uninstalling the release does not delete it automatically.
+The Secret named by `database.existingSecret` must contain the
+`database.secretKey` key (default: `DATABASE_URL`). The chart does not create
+credentials or a database PVC, which keeps secrets and database backups under
+infrastructure ownership.
 
-Use `persistence.existingClaim` to point at an existing ReadWriteOnce claim.
-Never increase `api.replicaCount` above one while using SQLite.
+The API pod runs `python -m app.cli migrate` as its first init container before
+the application starts. This is safe to rerun, seeds built-in scoring profiles,
+and does not require the NHL API.
 
 ## Season imports
 
-Season data is not bundled with the chart. When enabled, each season import
-runs as an API-pod init container after migrations and before the API starts.
-Keep it enabled in Helmfile values to refresh the selected seasons on every
-deployment:
+Season data is not bundled with the chart. When enabled, one CronJob imports
+every configured season on the schedule. It runs migrations before each import,
+so it is safe for the CronJob to start near an application upgrade. A failed NHL
+request retries according to `seasonImport.backoffLimit` but never prevents the
+API from serving the last successful snapshot.
 
 ```sh
 helm upgrade fantasy-hockey ./charts/fantasy-hockey-stats \
   --namespace fantasy-hockey \
+  --set database.existingSecret=fantasy-hockey-database \
   --set seasonImport.enabled=true \
   --set seasonImport.seasonIds[0]=20242025 \
   --set seasonImport.seasonIds[1]=20252026
 ```
 
 Each import replaces that season's aggregate skater and goalie rows, so it is
-safe to rerun. The Deployment uses a Recreate strategy, so the old API pod
-releases the PVC before its replacement migrates and imports. A failed NHL
-request leaves the previous snapshot in place and prevents the new API pod from
-starting. Because these are init containers, imports run whenever Kubernetes
-recreates the API pod, including node moves and pod restarts—not only Helm
-deployments. Keep `seasonImport.enabled` false if NHL availability must never
-prevent API startup. A future scheduled-import design can decouple freshness
-from API availability.
+safe to rerun. To run an import immediately after enabling the CronJob, create
+a one-off Job from it:
+
+```sh
+kubectl -n fantasy-hockey create job \
+  --from=cronjob/fantasy-hockey-fantasy-hockey-stats-season-import \
+  fantasy-hockey-season-import-manual
+```
