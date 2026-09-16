@@ -330,6 +330,7 @@
         {/each}
       </select>
     </label>
+    <a class="changelog-link" href="/changelog">What’s changed</a>
 
   </section>
 
@@ -538,7 +539,9 @@
   main { display: flex; flex-direction: column; width: 100%; height: 100vh; padding: 2.5rem clamp(1.25rem, 4vw, 5rem); overflow: hidden; }
   .eyebrow { margin: 0; color: #63d6ff; font-size: .75rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
   h2 { margin: .35rem 0; letter-spacing: -.03em; }
-  .controls { display: flex; flex: none; gap: 1rem; margin: 0 0 1.25rem; }
+  .controls { display: flex; flex: none; align-items: end; gap: 1rem; margin: 0 0 1.25rem; }
+  .changelog-link { margin: 0 0 .15rem auto; color: #83dafa; font-size: .9rem; text-decoration: none; }
+  .changelog-link:hover, .changelog-link:focus-visible { color: #eafbff; text-decoration: underline; }
   label { display: grid; gap: .45rem; color: #a9bed3; font-size: .85rem; font-weight: 650; }
   .profile-label { display: grid; gap: .45rem; color: #a9bed3; font-size: .85rem; font-weight: 650; }
   select { min-width: 180px; padding: .7rem .8rem; border: 1px solid #28425d; border-radius: .45rem; color: #f2f8ff; background: #102033; font: inherit; }
@@ -618,6 +621,6 @@
   .error { color: #ffb4ad; }
   .empty { padding: 2.25rem; color: #aabdd0; }
   .empty p { margin-bottom: 0; }
-  @media (max-width: 880px) { main { display: block; height: auto; min-height: 100vh; padding: 2.5rem 1rem; overflow: visible; } .controls { flex-direction: column; } select { width: 100%; } .workspace, .workspace.with-reports, .workspace.with-reports.reports-collapsed, .workspace.editor-collapsed, .workspace.with-reports.editor-collapsed, .workspace.with-reports.reports-collapsed.editor-collapsed { display: grid; grid-template-columns: 1fr; overflow: visible; } .results, .with-reports .results, .editor, .with-reports .editor, .reports-panel { grid-column: 1; min-height: auto; overflow: visible; } .results { grid-row: 1; padding-right: 0; } .reports-panel { grid-row: 2; } .editor { grid-row: 3; } .editor.collapsed, .reports-panel.collapsed { min-height: 3rem; } .resize-handle { display: none; } .movers { grid-template-columns: 1fr; } .movers article + article { border-top: 1px solid #1d354e; border-left: 0; } th, td { padding: .8rem 1rem; } }
+  @media (max-width: 880px) { main { display: block; height: auto; min-height: 100vh; padding: 2.5rem 1rem; overflow: visible; } .controls { flex-direction: column; align-items: stretch; } .changelog-link { margin: 0; } select { width: 100%; } .workspace, .workspace.with-reports, .workspace.with-reports.reports-collapsed, .workspace.editor-collapsed, .workspace.with-reports.editor-collapsed, .workspace.with-reports.reports-collapsed.editor-collapsed { display: grid; grid-template-columns: 1fr; overflow: visible; } .results, .with-reports .results, .editor, .with-reports .editor, .reports-panel { grid-column: 1; min-height: auto; overflow: visible; } .results { grid-row: 1; padding-right: 0; } .reports-panel { grid-row: 2; } .editor { grid-row: 3; } .editor.collapsed, .reports-panel.collapsed { min-height: 3rem; } .resize-handle { display: none; } .movers { grid-template-columns: 1fr; } .movers article + article { border-top: 1px solid #1d354e; border-left: 0; } th, td { padding: .8rem 1rem; } }
   @media (max-width: 440px) { .rule-grid { grid-template-columns: 1fr; } .editor-actions { justify-content: stretch; } .editor-actions button { flex: 1; } }
 </style>
