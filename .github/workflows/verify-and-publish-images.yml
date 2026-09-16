@@ -106,3 +106,50 @@ jobs:
           tags: ${{ env.REGISTRY }}:web-${{ steps.image-tags.outputs.short_sha }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
+
+  publish-rollout-tags:
+    name: Publish Flux rollout tags
+    needs: publish-images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set rollout tags
+        id: image-tags
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          echo "api_source=${REGISTRY}:api-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "web_source=${REGISTRY}:web-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "api_rollout=${REGISTRY}:api-${GITHUB_RUN_NUMBER}-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "web_rollout=${REGISTRY}:web-${GITHUB_RUN_NUMBER}-${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Copy immutable images to rollout tags
+        run: |
+          docker buildx imagetools create \
+            --tag "${{ steps.image-tags.outputs.api_rollout }}" \
+            "${{ steps.image-tags.outputs.api_source }}"
+          docker buildx imagetools create \
+            --tag "${{ steps.image-tags.outputs.web_rollout }}" \
+            "${{ steps.image-tags.outputs.web_source }}"
+
+      - name: Verify rollout image platforms
+        run: |
+          for image in \
+            "${{ steps.image-tags.outputs.api_rollout }}" \
+            "${{ steps.image-tags.outputs.web_rollout }}"; do
+            manifest="$(docker buildx imagetools inspect "$image")"
+            printf '%s\n' "$manifest"
+            grep -Eq 'Platform:.*linux/amd64' <<< "$manifest"
+            grep -Eq 'Platform:.*linux/arm64' <<< "$manifest"
+          done
