@@ -25,6 +25,36 @@
   let page = 1;
   let loading = true;
   let error = '';
+  let comparison = [];
+  let filteredComparison = [];
+  let filteredCustomRankings = [];
+  let positions = [];
+  let breakdown = { total: 0, forwards: 0, defensemen: 0, goalies: 0 };
+  let risers = [];
+  let fallers = [];
+  let totalPageCount = 1;
+  let visibleRows = [];
+
+  $: {
+    const baselineByPlayer = new Map(baselineRankings.map((player) => [player.player_id, player]));
+    comparison = customRankings.map((custom) => {
+      const baseline = baselineByPlayer.get(custom.player_id);
+      return {
+        ...custom,
+        baseline_rank: baseline?.rank ?? null,
+        baseline_points: baseline?.fantasy_points ?? 0,
+        rank_change: baseline ? baseline.rank - custom.rank : 0
+      };
+    });
+  }
+  $: filteredComparison = comparison.filter((player) => positionFilter === 'all' || player.position === positionFilter);
+  $: filteredCustomRankings = customRankings.filter((player) => positionFilter === 'all' || player.position === positionFilter);
+  $: positions = sortedPositions(customRankings);
+  $: breakdown = topBreakdown(filteredCustomRankings, reportSize);
+  $: risers = movers(filteredComparison, 'up');
+  $: fallers = movers(filteredComparison, 'down');
+  $: totalPageCount = Math.max(1, Math.ceil(filteredComparison.length / pageSize));
+  $: visibleRows = filteredComparison.slice((page - 1) * pageSize, page * pageSize);
 
   onMount(async () => {
     try {
@@ -65,7 +95,7 @@
     if (!baselineResponse.ok || !customResponse.ok) throw new Error('Could not calculate rankings.');
     baselineRankings = await baselineResponse.json();
     customRankings = await customResponse.json();
-    if (positionFilter !== 'all' && !availablePositions().includes(positionFilter)) {
+    if (positionFilter !== 'all' && !sortedPositions(customRankings).includes(positionFilter)) {
       positionFilter = 'all';
     }
     page = 1;
@@ -165,31 +195,10 @@
     return `${value.slice(0, 4)}–${value.slice(4)}`;
   }
 
-  function comparisonRows() {
-    const baselineByPlayer = new Map(baselineRankings.map((player) => [player.player_id, player]));
-    return customRankings.map((custom) => {
-      const baseline = baselineByPlayer.get(custom.player_id);
-      return {
-        ...custom,
-        baseline_rank: baseline?.rank ?? null,
-        baseline_points: baseline?.fantasy_points ?? 0,
-        rank_change: baseline ? baseline.rank - custom.rank : 0
-      };
-    });
-  }
-
-  function filteredComparisonRows() {
-    return comparisonRows().filter((player) => positionFilter === 'all' || player.position === positionFilter);
-  }
-
-  function filteredCustomRankings() {
-    return customRankings.filter((player) => positionFilter === 'all' || player.position === positionFilter);
-  }
-
-  function availablePositions() {
+  function sortedPositions(rankings) {
     const preferredOrder = ['C', 'LW', 'RW', 'L', 'R', 'D', 'G'];
-    const positions = new Set(customRankings.map((player) => player.position).filter(Boolean));
-    return [...positions].sort((left, right) => {
+    const uniquePositions = new Set(rankings.map((player) => player.position).filter(Boolean));
+    return [...uniquePositions].sort((left, right) => {
       const leftIndex = preferredOrder.indexOf(left);
       const rightIndex = preferredOrder.indexOf(right);
       return (leftIndex === -1 ? preferredOrder.length : leftIndex) - (rightIndex === -1 ? preferredOrder.length : rightIndex)
@@ -206,20 +215,11 @@
     page = 1;
   }
 
-  function movers(direction) {
-    return filteredComparisonRows()
+  function movers(players, direction) {
+    return players
       .filter((player) => (direction === 'up' ? player.rank_change > 0 : player.rank_change < 0))
       .sort((left, right) => direction === 'up' ? right.rank_change - left.rank_change : left.rank_change - right.rank_change)
       .slice(0, 5);
-  }
-
-  function totalPages() {
-    return Math.max(1, Math.ceil(filteredComparisonRows().length / pageSize));
-  }
-
-  function pageRows() {
-    const start = (page - 1) * pageSize;
-    return filteredComparisonRows().slice(start, start + pageSize);
   }
 
   function setPageSize() {
@@ -227,11 +227,11 @@
   }
 
   function changePage(nextPage) {
-    page = Math.min(Math.max(nextPage, 1), totalPages());
+    page = Math.min(Math.max(nextPage, 1), totalPageCount);
   }
 
-  function topBreakdown() {
-    const players = filteredCustomRankings().slice(0, reportSize);
+  function topBreakdown(rankings, size) {
+    const players = rankings.slice(0, size);
     const counts = { forwards: 0, defensemen: 0, goalies: 0 };
     for (const player of players) {
       if (player.position === 'G') counts.goalies += 1;
@@ -317,7 +317,7 @@
       Position
       <select value={positionFilter} on:change={(event) => selectPosition(event.currentTarget.value)} disabled={loading}>
         <option value="all">All positions</option>
-        {#each availablePositions() as position}
+        {#each positions as position}
           <option value={position}>{positionLabel(position)}</option>
         {/each}
       </select>
@@ -340,7 +340,6 @@
         {reportsCollapsed ? '›' : '‹'}
       </button>
       {#if !reportsCollapsed}
-        {@const breakdown = topBreakdown()}
         <div class="reports-content">
           <div class="breakdown-heading">
             <div>
@@ -446,7 +445,7 @@
     <p class="message error">{error}</p>
   {:else if loading}
     <p class="message">Loading rankings…</p>
-  {:else if filteredComparisonRows().length === 0}
+  {:else if filteredComparison.length === 0}
     <section class="empty">
       <h2>No {positionFilter === 'all' ? 'imported' : positionLabel(positionFilter)} {playerType === 'goalie' ? 'goalies' : playerType === 'skater' ? 'skaters' : 'players'} for this season.</h2>
       <p>{positionFilter === 'all' ? 'Run the season import to load NHL season totals for this view.' : 'Choose another position or season to view players.'}</p>
@@ -456,9 +455,9 @@
       <div class="movers">
         <article>
           <p class="eyebrow">Biggest risers</p>
-          {#if movers('up').length}
+          {#if risers.length}
             <ol>
-              {#each movers('up') as player}
+              {#each risers as player}
                 <li><span>{player.player_name}</span><strong>+{player.rank_change}</strong></li>
               {/each}
             </ol>
@@ -466,9 +465,9 @@
         </article>
         <article>
           <p class="eyebrow">Biggest fallers</p>
-          {#if movers('down').length}
+          {#if fallers.length}
             <ol>
-              {#each movers('down') as player}
+              {#each fallers as player}
                 <li><span>{player.player_name}</span><strong>{player.rank_change}</strong></li>
               {/each}
             </ol>
@@ -486,7 +485,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each pageRows() as player}
+            {#each visibleRows as player}
               <tr>
                 <td>{player.player_name}</td>
                 <td>{player.position}</td>
@@ -511,8 +510,8 @@
       <nav class="pagination" aria-label="Player table pagination">
         <div class="pagination-pages">
           <button type="button" on:click={() => changePage(page - 1)} disabled={page === 1}>Previous</button>
-          <span>Page {page} of {totalPages()}</span>
-          <button type="button" on:click={() => changePage(page + 1)} disabled={page === totalPages()}>Next</button>
+          <span>Page {page} of {totalPageCount}</span>
+          <button type="button" on:click={() => changePage(page + 1)} disabled={page === totalPageCount}>Next</button>
         </div>
         <div class="pagination-summary">
           <label class="page-size">
@@ -524,7 +523,7 @@
               <option value={100}>100</option>
             </select>
           </label>
-          <span>{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredComparisonRows().length)} of {filteredComparisonRows().length}</span>
+          <span>{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredComparison.length)} of {filteredComparison.length}</span>
         </div>
       </nav>
     </section>
