@@ -8,6 +8,7 @@
   let selectedSeason = '';
   let selectedProfile = '';
   let playerType = 'all';
+  let positionFilter = 'all';
   let draftRules = [];
   let pageSize = 25;
   let reportSize = 50;
@@ -64,6 +65,9 @@
     if (!baselineResponse.ok || !customResponse.ok) throw new Error('Could not calculate rankings.');
     baselineRankings = await baselineResponse.json();
     customRankings = await customResponse.json();
+    if (positionFilter !== 'all' && !availablePositions().includes(positionFilter)) {
+      positionFilter = 'all';
+    }
     page = 1;
   }
 
@@ -150,6 +154,7 @@
 
   async function selectPlayerType(nextPlayerType) {
     playerType = nextPlayerType;
+    positionFilter = 'all';
     selectedProfile = String(defaultProfile()?.id ?? '');
     setProfileRules();
     await updateRankings();
@@ -173,20 +178,48 @@
     });
   }
 
+  function filteredComparisonRows() {
+    return comparisonRows().filter((player) => positionFilter === 'all' || player.position === positionFilter);
+  }
+
+  function filteredCustomRankings() {
+    return customRankings.filter((player) => positionFilter === 'all' || player.position === positionFilter);
+  }
+
+  function availablePositions() {
+    const preferredOrder = ['C', 'LW', 'RW', 'L', 'R', 'D', 'G'];
+    const positions = new Set(customRankings.map((player) => player.position).filter(Boolean));
+    return [...positions].sort((left, right) => {
+      const leftIndex = preferredOrder.indexOf(left);
+      const rightIndex = preferredOrder.indexOf(right);
+      return (leftIndex === -1 ? preferredOrder.length : leftIndex) - (rightIndex === -1 ? preferredOrder.length : rightIndex)
+        || left.localeCompare(right);
+    });
+  }
+
+  function positionLabel(position) {
+    return { L: 'LW', R: 'RW' }[position] ?? position;
+  }
+
+  function selectPosition(nextPosition) {
+    positionFilter = nextPosition;
+    page = 1;
+  }
+
   function movers(direction) {
-    return comparisonRows()
+    return filteredComparisonRows()
       .filter((player) => (direction === 'up' ? player.rank_change > 0 : player.rank_change < 0))
       .sort((left, right) => direction === 'up' ? right.rank_change - left.rank_change : left.rank_change - right.rank_change)
       .slice(0, 5);
   }
 
   function totalPages() {
-    return Math.max(1, Math.ceil(customRankings.length / pageSize));
+    return Math.max(1, Math.ceil(filteredComparisonRows().length / pageSize));
   }
 
   function pageRows() {
     const start = (page - 1) * pageSize;
-    return comparisonRows().slice(start, start + pageSize);
+    return filteredComparisonRows().slice(start, start + pageSize);
   }
 
   function setPageSize() {
@@ -198,7 +231,7 @@
   }
 
   function topBreakdown() {
-    const players = customRankings.slice(0, reportSize);
+    const players = filteredCustomRankings().slice(0, reportSize);
     const counts = { forwards: 0, defensemen: 0, goalies: 0 };
     for (const player of players) {
       if (player.position === 'G') counts.goalies += 1;
@@ -278,6 +311,15 @@
         <option value="all">All players</option>
         <option value="skater">Skaters</option>
         <option value="goalie">Goalies</option>
+      </select>
+    </label>
+    <label>
+      Position
+      <select value={positionFilter} on:change={(event) => selectPosition(event.currentTarget.value)} disabled={loading}>
+        <option value="all">All positions</option>
+        {#each availablePositions() as position}
+          <option value={position}>{positionLabel(position)}</option>
+        {/each}
       </select>
     </label>
     <label>
@@ -404,10 +446,10 @@
     <p class="message error">{error}</p>
   {:else if loading}
     <p class="message">Loading rankings…</p>
-  {:else if customRankings.length === 0}
+  {:else if filteredComparisonRows().length === 0}
     <section class="empty">
-      <h2>No imported {playerType === 'goalie' ? 'goalies' : playerType === 'skater' ? 'skaters' : 'players'} for this season.</h2>
-      <p>Run the season import to load NHL season totals for this view.</p>
+      <h2>No {positionFilter === 'all' ? 'imported' : positionLabel(positionFilter)} {playerType === 'goalie' ? 'goalies' : playerType === 'skater' ? 'skaters' : 'players'} for this season.</h2>
+      <p>{positionFilter === 'all' ? 'Run the season import to load NHL season totals for this view.' : 'Choose another position or season to view players.'}</p>
     </section>
   {:else}
     <section class="rankings">
@@ -482,7 +524,7 @@
               <option value={100}>100</option>
             </select>
           </label>
-          <span>{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, customRankings.length)} of {customRankings.length}</span>
+          <span>{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredComparisonRows().length)} of {filteredComparisonRows().length}</span>
         </div>
       </nav>
     </section>
