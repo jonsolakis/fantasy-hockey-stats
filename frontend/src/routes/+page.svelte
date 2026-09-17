@@ -7,6 +7,7 @@
   let customRankings = [];
   let selectedSeason = '';
   let selectedProfile = '';
+  let selectedProfileName = 'Yahoo Default';
   let playerType = 'all';
   let positionFilter = 'all';
   let draftRules = [];
@@ -55,6 +56,7 @@
   $: fallers = movers(filteredComparison, 'down');
   $: totalPageCount = Math.max(1, Math.ceil(filteredComparison.length / pageSize));
   $: visibleRows = filteredComparison.slice((page - 1) * pageSize, page * pageSize);
+  $: selectedProfileName = profiles.find((profile) => profile.id === Number(selectedProfile))?.name ?? 'Yahoo Default';
 
   onMount(async () => {
     try {
@@ -136,10 +138,6 @@
   async function resetProfile() {
     setProfileRules();
     await updateRankings();
-  }
-
-  function currentProfileName() {
-    return profiles.find((profile) => profile.id === Number(selectedProfile))?.name ?? 'Yahoo Default';
   }
 
   async function chooseProfile(profileId) {
@@ -380,7 +378,7 @@
     </div>
     <div class="profile-label">
       <span>Baseline profile</span>
-      <span class="profile-name">{currentProfileName()}</span>
+      <span class="profile-name">{selectedProfileName}</span>
     </div>
     <div class="profile-actions">
       <button type="button" on:click={() => showProfiles = !showProfiles}>Choose profile</button>
